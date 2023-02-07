@@ -5,9 +5,5 @@
 # emacs backup files
 *~
 # runbot work files
-runbot/static/build
-runbot/static/repo
-runbot/static/sources
-runbot/static/nginx
-runbot/static/databases
-runbot/static/docker
+runbot/static
+!runbot/static/src
