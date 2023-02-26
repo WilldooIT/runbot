@@ -108,7 +108,7 @@
                     </table>
                     </div>
                     <div class="col-lg-6">
-                    <table class="table table-stripped">
+                    <table class="table table-stripped" id="table_builds">
                         <tr>
                             <td>Builds</td>
                             <td>
