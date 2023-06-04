@@ -119,26 +119,35 @@ class Host(models.Model):
             self._docker_build_dockerfile(dockerfile, static_path)
         _logger.info('Done...')
 
+    @api.model
+    def _dockerfile_append(self):
+        icp = self.env['ir.config_parameter']
+        append_text = icp.get_param('runbot.dockerfile_append_text', default="""
+            RUN groupadd -g %(gid)s %(user)s \\
+            && useradd -u %(uid)s -g %(user)s -G audio,video %(user)s \\
+            && mkdir /home/%(user)s \\
+            && chown -R %(user)s:%(user)s /home/%(user)s
+            USER %(user)s
+            ENV COVERAGE_FILE /data/build/.coverage
+        """)
+        return append_text.format(self._dockerfile_append_vals())
+
+    @api.model
+    def _dockerfile_append_vals(self):
+        return {
+            "gid": os.getgid(),
+            "uid": os.getuid(),
+            "user": getpass.getuser(),
+        }
+
     def _docker_build_dockerfile(self, dockerfile, workdir):
         start = time.time()
         # _logger.info('Building %s, %s', dockerfile.name, hash(str(dockerfile.dockerfile)))
         docker_build_path = os.path.join(workdir, 'docker', dockerfile.image_tag)
         os.makedirs(docker_build_path, exist_ok=True)
-
-        user = getpass.getuser()
-
-        docker_append = f"""
-            RUN groupadd -g {os.getgid()} {user} \\
-            && useradd -u {os.getuid()} -g {user} -G audio,video {user} \\
-            && mkdir /home/{user} \\
-            && chown -R {user}:{user} /home/{user}
-            USER {user}
-            ENV COVERAGE_FILE /data/build/.coverage
-            """
-
+        docker_append = self._dockerfile_append()
         with open(os.path.join(docker_build_path, 'Dockerfile'), 'w') as Dockerfile:
             Dockerfile.write(dockerfile.dockerfile + docker_append)
-
         docker_build_success, msg = docker_build(docker_build_path, dockerfile.image_tag)
         if not docker_build_success:
             dockerfile.to_build = False
@@ -151,7 +160,7 @@ class Host(models.Model):
 
     def _get_work_path(self):
         return os.path.abspath(os.path.join(os.path.dirname(__file__), '../static'))
-    
+
     @ormcache()
     def _host_list(self):
         return {host.name: host.id for host in self.search([])}
